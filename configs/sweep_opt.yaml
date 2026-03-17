@@ -1,0 +1,49 @@
+sweep_name: 'sweep_opt'
+
+seed: 42
+device: cpu
+dataset_dir: data
+
+dataset:
+  name: mnist # For now, only MNIST supported
+  image_size: [28, 28]
+  fold: 0
+
+model: 
+  name: mlp
+  dropout: 0
+
+train:
+  batch_size: 256
+  num_workers: 8
+  epochs: 10
+  warmup_epochs: 0
+  label_smoothing: 0
+
+optimizer:  # Adam
+    lr: 1e-3
+    wd: 1e-2
+
+stop:
+  min_delta: 1e-3
+  patience: 10
+
+hydra:
+  run:
+    dir: experiments
+
+  sweep:
+    dir: experiments/${sweep_name}
+    subdir: ${hydra.job.override_dirname}
+
+  sweeper:
+    params:
+      optimizer.lr: 1e-4,1e-3,1e-2
+      optimizer.wd: 1e-4,1e-3,1e-2
+
+  # To make names shorter instead of optimizer.lr, just lr
+  job:
+    config:
+      override_dirname:
+        kv_sep: "="
+        item_sep: "_"
