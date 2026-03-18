@@ -156,10 +156,18 @@ def load_eval(checkpoints_dir, experiment_name):
     with open(results_file, 'r') as f:
         results = json.load(f)
 
-    targets, preds, probs = [
-        np.array(results[k]) for k in ['targets', 'preds', 'probs']
+    targets, preds, probs, embeddings = [
+        np.array(results[k]) for k in ['targets', 'preds', 'probs', 'embeddings']
     ]
-    return targets, preds, probs
+
+    # Load stats
+    checkpoint_file = checkpoints_dir.joinpath(f'{experiment_name}.pt')
+    checkpoint = torch.load(
+        checkpoint_file, map_location=torch.device('cpu'), weights_only=False
+    )
+    stats, wandb_id = [checkpoint[k] for k in ['stats', 'wandb_id']]
+
+    return targets, preds, probs, embeddings, stats, wandb_id
 
 
 @hydra.main(version_base=None, config_path='../../configs', config_name='default')
