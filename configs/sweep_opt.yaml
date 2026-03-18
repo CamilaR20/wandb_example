@@ -28,6 +28,11 @@ stop:
   min_delta: 1e-3
   patience: 10
 
+# To disable wandb mode: disabled
+wandb:
+  mode: offline
+  watch: null # log arg of watch: null, all, gradients, parameters
+
 hydra:
   run:
     dir: experiments

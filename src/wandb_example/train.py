@@ -45,11 +45,7 @@ def init_experiment(config):
 
     # Initialize checkpoint file separate from logs
     project_dir = Path.cwd()
-    if is_sweep:
-        checkpoint_file = project_dir.joinpath('checkpoints', f'{run_name}.pt')
-    else:
-        checkpoint_file = project_dir.joinpath('checkpoints', group, f'{run_name}.pt')
-
+    checkpoint_file = project_dir.joinpath('checkpoints', group, f'{run_name}.pt')
     checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
     return wandb_kwargs, checkpoint_file
@@ -103,7 +99,7 @@ def get_optim(config, model):
     return optimizer, scheduler
 
 
-def get_train_objs(config, checkpoint_file, n_classes):
+def get_train_objs(config, checkpoint_file, n_classes, wandb_kwargs):
     # Load model, optimizer, scheduler and loss function
     start_epoch = 0
 
@@ -130,7 +126,11 @@ def get_train_objs(config, checkpoint_file, n_classes):
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
 
-    return (model, optimizer, scheduler, loss_fn, start_epoch, stats)
+        # Resume logging to the same id
+        wandb_kwargs['id'] = checkpoint['wandb_id']
+        wandb_kwargs['resume'] = 'must'
+
+    return (model, optimizer, scheduler, loss_fn, start_epoch, stats, wandb_kwargs)
 
 
 def train_one_epoch(model, dataloader, loss_fn, optimizer, device):
@@ -145,7 +145,7 @@ def train_one_epoch(model, dataloader, loss_fn, optimizer, device):
 
         optimizer.zero_grad(set_to_none=True)
 
-        logits = model(x)
+        _, logits = model(x)
         loss = loss_fn(logits, y)
 
         loss.backward()
@@ -170,7 +170,7 @@ def validate_one_epoch(model, dataloader, loss_fn, device):
         x = x.to(device, non_blocking=True)
         y = y.type(torch.int64).to(device, non_blocking=True)
 
-        logits = model(x)
+        _, logits = model(x)
         loss = loss_fn(logits, y)
 
         epoch_loss += loss.item()
@@ -188,6 +188,12 @@ def main(config: DictConfig):
     # Initialize checkpointing and wandb
     wandb_kwargs, checkpoint_file = init_experiment(config)
 
+    # Get dataloader, model, optimizer, scheduler and loss function
+    dataloader_train, dataloader_val, n_classes = get_dataloaders(config)
+    model, optimizer, scheduler, loss_fn, start_epoch, stats, wandb_kwargs = (
+        get_train_objs(config, checkpoint_file, n_classes, wandb_kwargs)
+    )
+
     with wandb.init(**wandb_kwargs) as run:
         # Define metrics: x-axis, other metrics
         run.define_metric('epoch')
@@ -195,11 +201,8 @@ def main(config: DictConfig):
         run.define_metric('acc/*', step_metric='epoch')
         run.define_metric('auroc/*', step_metric='epoch')
 
-        # Get dataloader, model, optimizer, scheduler and loss function
-        dataloader_train, dataloader_val, n_classes = get_dataloaders(config)
-        model, optimizer, scheduler, loss_fn, start_epoch, stats = get_train_objs(
-            config, checkpoint_file, n_classes
-        )
+        # Watch weights and gradients
+        run.watch(model, log=config.wandb.watch, log_freq=len(dataloader_train))
 
         # Early stopping saves the best model
         early_stopping = metrics.EarlyStoppingLoss(
@@ -249,6 +252,7 @@ def main(config: DictConfig):
                 'scheduler': scheduler.state_dict(),
                 'epoch': epoch + 1,
                 'stats': stats,
+                'wandb_id': run.id,
             }
             early_stopping(epoch, val_loss, checkpoint)
             if early_stopping.stop_training:

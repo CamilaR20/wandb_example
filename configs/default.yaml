@@ -31,6 +31,7 @@ stop:
 # To disable wandb mode: disabled
 wandb:
   mode: offline
+  watch: all # log arg of watch: null, all, gradients, parameters
 
 hydra:
   run:
