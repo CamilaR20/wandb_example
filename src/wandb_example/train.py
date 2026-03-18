@@ -252,7 +252,7 @@ def main(config: DictConfig):
                 'scheduler': scheduler.state_dict(),
                 'epoch': epoch + 1,
                 'stats': stats,
-                'wandb_id': run.id,
+                'wandb_id': run.id if wandb.run is not None else None,
             }
             early_stopping(epoch, val_loss, checkpoint)
             if early_stopping.stop_training:
