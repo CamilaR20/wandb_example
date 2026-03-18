@@ -200,10 +200,10 @@ def main(config: DictConfig):
 
         # Metrics
         auroc, auprc, acc, kappa = get_all_metrics(targets_test, preds_test, probs_test)
-        run.summary['auroc/eval'] = auroc
-        run.summary['auprc/eval'] = auprc
-        run.summary['acc/eval'] = acc
-        run.summary['kappa/eval'] = kappa
+        run.summary['auroc/test'] = auroc
+        run.summary['auprc/test'] = auprc
+        run.summary['acc/test'] = acc
+        run.summary['kappa/test'] = kappa
 
         # Save results
         results = {
