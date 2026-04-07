@@ -15,6 +15,7 @@ Create a virtual environment, install dependencies and activate environment:
    ```bash
    uv sync
    source .venv/bin/activate
+   uv pip install -e .
    ```
 
 ### Option 2 — Using pip
